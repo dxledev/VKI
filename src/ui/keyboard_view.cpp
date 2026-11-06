@@ -52,7 +52,6 @@ void KeyboardView::setKeycodes(const QList<quint16> &codes) {
 void KeyboardView::setPreviewColors(const QList<QColor> &colors) {
     preview_ = colors;
     previewMode_ = true;
-    setMouseTracking(false);
     setFocusPolicy(Qt::NoFocus);
     setCursor(Qt::ArrowCursor);
     hover_ = -1;
@@ -98,7 +97,7 @@ int KeyboardView::keyAt(const QPointF &point) const {
 void KeyboardView::paintEvent(QPaintEvent *) {
     if (definition_.keys.isEmpty())
         return;
-    if (threeD_ && !previewMode_) { paint3D(); return; }
+    if (threeD_) { paint3D(); return; }
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     const double unit = std::min(width() / definition_.width(), height() / definition_.height());
@@ -136,7 +135,7 @@ void KeyboardView::paintEvent(QPaintEvent *) {
 void KeyboardView::mouseMoveEvent(QMouseEvent *event) {
     if (pressing_ && !(event->buttons() & Qt::LeftButton)) {  // release was lost
         pressing_ = dragging_ = false;
-        setCursor(enabled_ ? Qt::PointingHandCursor : Qt::ArrowCursor);
+        setCursor(enabled_ && !previewMode_ ? Qt::PointingHandCursor : Qt::ArrowCursor);
     }
     if (threeD_ && pressing_) {
         if (!dragging_ && (event->position() - pressPos_).manhattanLength() > 5) {
@@ -153,6 +152,11 @@ void KeyboardView::mouseMoveEvent(QMouseEvent *event) {
         lastPos_ = event->position();
         return;
     }
+    if (previewMode_) {
+        const bool over = caseHull_.containsPoint(event->position(), Qt::WindingFill);
+        if (over != over_) { over_ = over; update(); }
+        return;
+    }
     const int index = keyAt(event->position());
     if (index != hover_) {
         hover_ = index;
@@ -162,19 +166,20 @@ void KeyboardView::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void KeyboardView::leaveEvent(QEvent *) {
+    over_ = false;
     hover_ = -1;
     kick();
     update();
 }
 
 void KeyboardView::mousePressEvent(QMouseEvent *event) {
-    if (previewMode_) return;
+    if (previewMode_ && !threeD_) return;
     if (threeD_) {
         if (event->button() == Qt::LeftButton) {
             pressing_ = true;
             dragging_ = false;
             pressPos_ = lastPos_ = event->position();
-            setFocus();
+            if (!previewMode_) setFocus();
         }
         return;
     }
@@ -192,7 +197,8 @@ void KeyboardView::mouseReleaseEvent(QMouseEvent *event) {
     pressing_ = dragging_ = false;
     yawTarget_ = 0;
     pitchTarget_ = .3;
-    setCursor(enabled_ ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    setCursor(enabled_ && !previewMode_ ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    if (previewMode_) { kick(); return; }
     if (!wasDrag && enabled_) {
         const int index = keyAt(event->position());
         if (index >= 0) {
@@ -338,6 +344,29 @@ void KeyboardView::paint3D() {
         return QPolygonF{pose.project(x0, y0, z0), pose.project(x1, y1, z1),
                          pose.project(x2, y2, z2), pose.project(x3, y3, z3)};
     };
+    {  // outline of the whole case (convex hull of its corners) for the hover test
+        std::vector<QPointF> pts;
+        for (const double sx : {-1., 1.})
+            for (const double sy : {-1., 1.})
+                for (const double z : {-kCaseDepth, 0.})
+                    pts.push_back(pose.project(sx * ex, sy * ey, z));
+        std::sort(pts.begin(), pts.end(), [](const QPointF &a, const QPointF &b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+        auto cross = [](const QPointF &o, const QPointF &a, const QPointF &b) {
+            return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x());
+        };
+        std::vector<QPointF> hull(pts.size() * 2);
+        size_t n = 0;
+        for (size_t i = 0; i < pts.size(); ++i) {
+            while (n >= 2 && cross(hull[n - 2], hull[n - 1], pts[i]) <= 0) --n;
+            hull[n++] = pts[i];
+        }
+        for (size_t i = pts.size() - 1, t = n + 1; i > 0; --i) {
+            while (n >= t && cross(hull[n - 2], hull[n - 1], pts[i - 1]) <= 0) --n;
+            hull[n++] = pts[i - 1];
+        }
+        caseHull_.clear();
+        for (size_t i = 0; i + 1 < n; ++i) caseHull_ << hull[i];
+    }
     // Case body: visible outer walls, then the plate.
     {
         const double x0 = -ex, x1 = ex, y0 = -ey, y1 = ey, zt = 0, zb = -kCaseDepth;
@@ -358,6 +387,25 @@ void KeyboardView::paint3D() {
         p.drawPolygon(quad(x0, y0, zt, x1, y0, zt, x1, y1, zt, x0, y1, zt));
         p.setBrush(plateColor);
         p.drawPolygon(quad(-W / 2 - 4, -H / 2 - 4, 0, W / 2 + 4, -H / 2 - 4, 0, W / 2 + 4, H / 2 + 4, 0, -W / 2 - 4, H / 2 + 4, 0));
+    }
+
+    const bool lit = previewMode_;
+    if (lit) {  // backlight bleed on the plate on the plate around each key, as flat translucent rings
+        for (int i = 0; i < definition_.keys.size() && i < preview_.size(); ++i) {
+            const auto &k = definition_.keys[i];
+            QColor glow = preview_[i];
+            if (glow.alpha() == 0) continue;
+            const double x0 = k.x * kUnit - W / 2 + kGap, y0 = k.y * kUnit - H / 2 + kGap;
+            const double x1 = (k.x + k.w) * kUnit - W / 2 - kGap, y1 = (k.y + k.h) * kUnit - H / 2 - kGap;
+            const double a = glow.alphaF();
+            p.setPen(Qt::NoPen);
+            for (const auto &ring : {std::pair{12.0, .10}, std::pair{7.0, .16}, std::pair{3.0, .26}}) {
+                glow.setAlphaF(a * ring.second);
+                p.setBrush(glow);
+                const double e = ring.first;
+                p.drawPolygon(quad(x0 - e, y0 - e, .3, x1 + e, y0 - e, .3, x1 + e, y1 + e, .3, x0 - e, y1 + e, .3));
+            }
+        }
     }
 
     struct Item { int index; double depth; };
@@ -388,10 +436,16 @@ void KeyboardView::paint3D() {
         const double zb = kBaseZ + lift * kLiftTravel, zt = zb + kCapHeight;
         const double inset = std::min(kCapInset, std::min(x1 - x0, y1 - y0) / 4);
         const double tx0 = x0 + inset, ty0 = y0 + inset, tx1 = x1 - inset, ty1 = y1 - inset;
-        const bool hovered = enabled_ && i == hover_, selected = i == selected_;
+        const bool hovered = !lit && enabled_ && i == hover_, selected = !lit && i == selected_;
         const bool accent = accentKey(k);
         QColor top = accent ? theme_.color("accent") : mixed(theme_.color("text"), theme_.color("background"), .08);
         QColor legend = accent ? theme_.color("accent_text") : theme_.color("background");
+        if (lit && over_ && i < preview_.size() && preview_[i].alpha() > 0) {  // light shows through on hover
+            QColor led = preview_[i];
+            const double a = led.alphaF();
+            led.setAlpha(255);
+            top = mixed(top, led, .45 * a);
+        }
         if (hovered || selected) top = mixed(top, theme_.color("selection"), .3);
         if (!enabled_) legend = mixed(top, legend, .5);
 

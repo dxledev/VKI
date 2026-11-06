@@ -50,11 +50,8 @@ Window::Window(QString directory, Theme theme, Definition definition, QWidget *p
     sideLayout->setSpacing(6);
     auto *brand = new QLabel("VKI");
     brand->setObjectName("brand");
+    brand->setAlignment(Qt::AlignHCenter);
     sideLayout->addWidget(brand);
-    auto *model = new QLabel(definition_.name);
-    model->setObjectName("hint");
-    model->setWordWrap(true);
-    sideLayout->addWidget(model);
     sideLayout->addSpacing(14);
     for (int i = 0; i < 2; ++i) {
         auto *button = new QPushButton(navLabels[i]);
@@ -77,10 +74,17 @@ Window::Window(QString directory, Theme theme, Definition definition, QWidget *p
     auto *mainLayout = new QVBoxLayout(main);
     mainLayout->setContentsMargins(28, 24, 28, 24);
     mainLayout->setSpacing(14);
+    auto *top = new QHBoxLayout;
+    top->setContentsMargins(0, 0, 0, 0);
     banner_ = new QLabel;
     banner_->setObjectName("banner");
     banner_->setWordWrap(true);
-    mainLayout->addWidget(banner_);
+    top->addWidget(banner_, 1);
+    top->addStretch();
+    auto *model = new QLabel(definition_.name);
+    model->setObjectName("device");
+    top->addWidget(model, 0, Qt::AlignTop);
+    mainLayout->addLayout(top);
     pages_ = new QStackedWidget;
     mainLayout->addWidget(pages_, 1);
     shell->addWidget(main, 1);
@@ -91,6 +95,10 @@ Window::Window(QString directory, Theme theme, Definition definition, QWidget *p
     keymap_ = new KeymapPage(definition_, device_, modal_, directory_);
     pages_->addWidget(keymap_);
     pages_->addWidget(lighting_);
+    connect(keymap_, &KeymapPage::keycodesChanged, lighting_, &LightingPage::setKeycodes);
+    lighting_->setModal(modal_);
+    lighting_->matchPreview(keymap_->keyboard());
+    lighting_->setConfigDirectory(directory_);
 
     watcher_ = new ThemeWatcher(directory_ + "/theme.json", std::move(theme), this);
     connect(watcher_, &ThemeWatcher::changed, this, &Window::applyTheme);
@@ -116,6 +124,8 @@ void Window::connectionChanged(bool connected) {
         status_->setText("Connected");
         lighting_->reload();
         keymap_->reload();
+        lighting_->syncAccent();
+        lighting_->syncPreview();
     } else {
         banner_->setText("Keyboard not found. Connect it with the USB cable and set it to wired mode. "
                          "If it is plugged in, your account may need read and write access to its hidraw node "
@@ -138,6 +148,7 @@ void Window::applyTheme() {
                 "QWidget#sidebar {background:%4;} "
                 "QLabel#brand {font-size:26px;font-weight:600;} "
                 "QLabel#hint, QLabel#status, QLabel#readout {color:%3;font-size:12px;} "
+                "QLabel#device {color:%3;font-size:12px;padding:0 2px;} "
                 "QLabel#cardTitle {font-size:16px;font-weight:600;} "
                 "QLabel#code {color:%3;font-family:monospace;font-size:12px;} "
                 "QLabel#banner {background:%4;border:1px solid %9;border-radius:10px;padding:12px 14px;} "
@@ -150,6 +161,9 @@ void Window::applyTheme() {
                 "QPushButton#nav {background:transparent;border:none;text-align:left;padding:10px 12px;} "
                 "QPushButton#nav:hover {background:%6;} "
                 "QPushButton#nav:checked {background:%10;color:%2;} "
+                "QPushButton#choice {text-align:left;padding:8px 0;} "
+                "QPushButton#choice QLabel {background:transparent;border:none;} "
+                "QPushButton#choiceOption {padding:8px 10px;} "
                 "QPushButton#secondary {padding:6px 12px;} "
                 "QPushButton#keyChoice {padding:4px 4px;font-size:12px;} "
                 "QPushButton#category {background:transparent;border:none;text-align:left;padding:8px 12px;color:%3;} "

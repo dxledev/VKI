@@ -2,6 +2,7 @@
 #include "core/theme.h"
 #include <QPointer>
 #include <QWidget>
+class QBoxLayout;
 class QLabel;
 class QScrollArea;
 class QPushButton;
@@ -15,8 +16,10 @@ public:
   Modal(QWidget *parent, QWidget *background);
   void open(const QString &title, const QString &body, const QStringList &actions);
   // Takes ownership of content and shows it inside the card.
-  void openContent(const QString &title, QWidget *content, const QStringList &actions, bool wide = false);
+  void openContent(const QString &title, QWidget *content, const QStringList &actions, bool wide = false,
+                   bool inlineActions = false);
   void setTheme(const Theme &theme);
+  void setActionEnabled(int index, bool enabled);
   void dismiss();
   void refreshSnapshot();
   bool isOpen() const { return isVisible() && !closing_; }
@@ -46,6 +49,8 @@ private:
   QScrollArea *bodyScroll_;
   bool wide_ = false;
   QList<QPushButton *> buttons_;
+  QBoxLayout *actionBox_ = nullptr;
+  bool inlineActions_ = false;
   QPixmap snapshot_, backgroundFrame_;
   bool backgroundFrozen_ = false, backgroundUpdatesWereEnabled_ = true;
   void freezeBackground();

@@ -14,7 +14,7 @@ add_library(vki_ui src/ui/modal.cpp src/ui/modal_backdrop.cpp src/ui/modal_motio
     src/ui/color_picker.cpp
     src/ui/keymap_page.cpp src/ui/window.cpp)
 target_link_libraries(vki_ui PUBLIC vki_core Qt6::Widgets Qt6::OpenGLWidgets)
-add_executable(vki src/main.cpp src/cli.cpp data/resources.qrc)
+add_executable(vki src/main.cpp src/cli.cpp src/accent_sync.cpp data/resources.qrc)
 target_link_libraries(vki PRIVATE vki_ui)
 foreach(target vki_core vki_ui vki)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)

@@ -6,6 +6,7 @@
 #include <QGraphicsBlurEffect>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsScene>
+#include <QBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMouseEvent>
@@ -46,11 +47,16 @@ Modal::Modal(QWidget *parent, QWidget *background)
   bodyScroll_->setFrameShape(QFrame::NoFrame);
   bodyScroll_->viewport()->setAutoFillBackground(false);
   layout->addWidget(bodyScroll_);
+  auto *actionRow = new QWidget(card_);
+  actionBox_ = new QBoxLayout(QBoxLayout::TopToBottom, actionRow);
+  actionBox_->setContentsMargins(0, 0, 0, 0);
+  actionBox_->setSpacing(16);
+  layout->addWidget(actionRow);
   for (int i = 0; i < 3; ++i) {
     auto *button = new QPushButton(card_);
     button->setObjectName(QString("modalAction%1").arg(i));
     button->setCursor(Qt::PointingHandCursor);
-    layout->addWidget(button);
+    actionBox_->addWidget(button);
     buttons_.append(button);
     connect(button, &QPushButton::clicked, this, [this, i] { beginDismiss(i); });
   }
@@ -62,6 +68,9 @@ void Modal::setTheme(const Theme &theme) {
   if (isVisible()) refreshSnapshot();
   update();
 }
+void Modal::setActionEnabled(int index, bool enabled) {
+  if (index >= 0 && index < buttons_.size()) buttons_[index]->setEnabled(enabled);
+}
 void Modal::open(const QString &title, const QString &body, const QStringList &actions) {
   auto *label = new QLabel(body);
   label->setWordWrap(true);
@@ -69,7 +78,8 @@ void Modal::open(const QString &title, const QString &body, const QStringList &a
   label->setAutoFillBackground(false);
   openContent(title, label, actions, false);
 }
-void Modal::openContent(const QString &title, QWidget *content, const QStringList &actions, bool wide) {
+void Modal::openContent(const QString &title, QWidget *content, const QStringList &actions, bool wide,
+                        bool inlineActions) {
   const bool wasVisible = isVisible();
   if (!wasVisible) {
     previousFocus_ = QApplication::focusWidget();
@@ -81,11 +91,14 @@ void Modal::openContent(const QString &title, QWidget *content, const QStringLis
   pendingChoice_ = -1;
   card_->setAttribute(Qt::WA_TransparentForMouseEvents, false);
   wide_ = wide;
+  inlineActions_ = inlineActions;
+  actionBox_->setDirection(inlineActions ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom);
   title_->setText(title);
   delete bodyScroll_->takeWidget();
   content->setAutoFillBackground(false);
   bodyScroll_->setWidget(content);
   for (int i = 0; i < buttons_.size(); ++i) {
+    buttons_[i]->setEnabled(true);
     buttons_[i]->setVisible(i < actions.size());
     if (i < actions.size()) buttons_[i]->setText(actions[i]);
   }
@@ -106,6 +119,7 @@ void Modal::centerCard() {
   int visibleButtons = 0;
   for (auto *button : buttons_)
     if (!button->isHidden()) ++visibleButtons;
+  if (inlineActions_ && visibleButtons > 0) visibleButtons = 1;
   int contentHeight = 30;
   if (content) {
     content->setMinimumHeight(0);

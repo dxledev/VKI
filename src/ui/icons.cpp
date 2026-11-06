@@ -50,6 +50,12 @@ QIcon glyph(const QString &name, const QColor &color, int size) {
         p.drawPath(arc);
         p.drawLine(QPointF(17.6, 3.5), QPointF(18.4, 8.4));
         p.drawLine(QPointF(18.4, 8.4), QPointF(13.6, 8.6));
+    } else if (name == "chevron") {
+        QPainterPath path;
+        path.moveTo(6.5, 9.5);
+        path.lineTo(12, 15);
+        path.lineTo(17.5, 9.5);
+        p.drawPath(path);
     } else if (name == "usb") {
         p.drawLine(QPointF(12, 3), QPointF(12, 19));
         p.drawEllipse(QPointF(12, 20), 1.6, 1.6);

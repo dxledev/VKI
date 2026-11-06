@@ -1,5 +1,6 @@
 #include "cli.h"
 #include "core/storage.h"
+#include "accent_sync.h"
 #include "core/theme.h"
 #include "device/definition.h"
 #include "ui/window.h"
@@ -14,6 +15,18 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; ++i)
     args.append(QString::fromLocal8Bit(argv[i]));
   try {
+    bool daemon = false;
+    for (qsizetype i = 0; i < args.size(); ++i) {
+      if (args[i] == "--config-dir" || args[i] == "--definition") { ++i; continue; }
+      if (args[i] == "accent-daemon") daemon = true;
+    }
+    if (daemon) {
+      QCoreApplication app(argc, argv);
+      QString definitionPath = ":/vki/galaxy100-lite.json";
+      for (qsizetype i = 0; i + 1 < args.size(); ++i)
+        if (args[i] == "--definition") definitionPath = args[i + 1];
+      return vki::runAccentDaemon(vki::configDirectory(args), definitionPath);
+    }
     bool command = false;
     for (const auto &arg : args)
       if (arg == "theme" || arg == "--help" || arg == "-h" ||

@@ -19,7 +19,11 @@ class Modal;
 
 class KeymapPage : public QWidget {
     Q_OBJECT
+signals:
+    void keycodesChanged(const QList<quint16> &codes);
+
 public:
+    QWidget *keyboard() const;
     KeymapPage(const Definition &definition, ViaDevice *device, Modal *modal, QString configDirectory,
                QWidget *parent = nullptr);
     void setTheme(const Theme &theme);

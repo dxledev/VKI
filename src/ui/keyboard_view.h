@@ -45,7 +45,7 @@ private:
     Theme theme_;
     QList<quint16> codes_;
     QList<QColor> preview_;
-    bool previewMode_ = false;
+    bool previewMode_ = false, over_ = false;
     int selected_ = -1;
     int hover_ = -1, focused_ = 0;
     bool enabled_ = true;
@@ -55,6 +55,7 @@ private:
     double yaw_ = 0, pitch_ = .3, yawTarget_ = 0, pitchTarget_ = .3;
     QList<double> lift_;
     std::vector<Face> faces_;
+    QPolygonF caseHull_;  // screen-space outline of the keyboard model, for hover
     QTimer *anim_ = nullptr;
     void paint3D();
     void stepAnimation();

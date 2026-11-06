@@ -229,6 +229,7 @@ void KeymapPage::reload() {
     rebuildLayerButtons();
     if (keymap_.isEmpty()) {
         view_->setKeycodes({});
+    emit keycodesChanged({});
         encoderCodes_.clear();
         encoderSupported_ = false;
         knobBar_->hide();
@@ -255,6 +256,7 @@ void KeymapPage::showLayer(int layer) {
     for (int i = 0; i < layerButtons_.size(); ++i) layerButtons_[i]->setChecked(i == layer);
     const int size = definition_.rows * definition_.cols;
     view_->setKeycodes(keymap_.mid(layer * size, size));
+    emit keycodesChanged(keymap_.mid(layer * size, size));
     if (auto *code = selectedCode()) palette_->setCurrent(*code);
     updateHint();
 }
@@ -357,3 +359,7 @@ void KeymapPage::backupOnce() {
 }
 
 #include "keymap_page.moc"
+
+namespace vki {
+QWidget *KeymapPage::keyboard() const { return view_; }
+}
