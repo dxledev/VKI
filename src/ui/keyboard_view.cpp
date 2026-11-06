@@ -413,12 +413,25 @@ void KeyboardView::paint3D() {
             const double x1 = (k.x + k.w) * kUnit - W / 2 - kGap, y1 = (k.y + k.h) * kUnit - H / 2 - kGap;
             const double a = glow.alphaF();
             p.setPen(Qt::NoPen);
-            for (const auto &ring : {std::pair{12.0, .10}, std::pair{7.0, .16}, std::pair{3.0, .26}}) {
-                glow.setAlphaF(a * ring.second);
-                p.setBrush(glow);
-                const double e = ring.first;
-                p.drawPolygon(quad(x0 - e, y0 - e, .3, x1 + e, y0 - e, .3, x1 + e, y1 + e, .3, x0 - e, y1 + e, .3));
-            }
+            // One soft radial falloff per key, drawn in the key's own plane: smooth edges, no blur pass.
+            const double e = 20, hw = (x1 - x0) / 2, hh = (y1 - y0) / 2, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+            const QPolygonF corners{pose.project(cx - hw - e, cy - hh - e, .3), pose.project(cx + hw + e, cy - hh - e, .3),
+                                    pose.project(cx + hw + e, cy + hh + e, .3), pose.project(cx - hw - e, cy + hh + e, .3)};
+            QTransform t;
+            if (!QTransform::quadToQuad(QPolygonF(QRectF(-1, -1, 2, 2)), corners, t)) continue;
+            const double inner = (hw / (hw + e) + hh / (hh + e)) / 2;
+            QRadialGradient g(0, 0, 1);
+            auto stop = [&](double at, double alpha) { QColor c = glow; c.setAlphaF(a * alpha); g.setColorAt(at, c); };
+            stop(0, .75);
+            stop(inner, .62);
+            stop(inner + (1 - inner) * .35, .34);
+            stop(inner + (1 - inner) * .7, .12);
+            stop(1, 0);
+            p.save();
+            p.setTransform(t, true);
+            p.setBrush(g);
+            p.drawRect(QRectF(-1, -1, 2, 2));
+            p.restore();
         }
     }
 
