@@ -1,0 +1,2 @@
+# Grants the logged-in user access to the Galaxy100 Lite's configuration interface.
+KERNEL=="hidraw*", ATTRS{idVendor}=="36b0", ATTRS{idProduct}=="3055", TAG+="uaccess"

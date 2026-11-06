@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/vki">
+    <file alias="galaxy100-lite.json">galaxy100-lite.json</file>
+    <file alias="icon.svg">../assets/io.github.vki.svg</file>
+  </qresource>
+</RCC>

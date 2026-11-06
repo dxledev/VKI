@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=VKI
+Comment=Configure the Epomaker Galaxy100 Lite keyboard
+Exec=vki
+Icon=io.github.vki
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=keyboard;rgb;keymap;via;epomaker;galaxy100;
+StartupWMClass=io.github.vki
