@@ -89,6 +89,7 @@ void LightingPage::build() {
                 auto *slider = new QSlider(Qt::Horizontal);
                 slider->setRange(control.min, control.max);
                 slider->setFocusPolicy(Qt::StrongFocus);
+                slider->setMinimumHeight(22);  // room for the 16px handle so it is not clipped
                 row.input = slider;
                 connect(slider, &QSlider::valueChanged, this, [this, index](int value) {
                     if (!loading_) apply(rows_[index], value);

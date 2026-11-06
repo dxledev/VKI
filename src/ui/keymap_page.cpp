@@ -40,6 +40,8 @@ public:
             button->setCheckable(true);
             button->setCursor(Qt::PointingHandCursor);
             button->setMinimumWidth(130);
+            button->setMinimumHeight(button->fontMetrics().height() + 18);  // keeps descenders (y, g) from clipping
+            button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
             connect(button, &QPushButton::clicked, this, [this, i] { select(i); });
             side->addWidget(button);
             buttons_.append(button);
