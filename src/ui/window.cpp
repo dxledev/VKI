@@ -138,6 +138,20 @@ void Window::connectionChanged(bool connected) {
 void Window::applyTheme() {
     const auto &theme = watcher_->theme();
     auto c = [&](const char *key) { return css(theme.color(key)); };
+    // Panels (sidebar, cards) must read as separate from the window background,
+    // even when the source theme makes surface identical to it.
+    QColor panel = theme.color("surface");
+    const QColor base = theme.color("background"), ink = theme.color("text");
+    auto distance = [](QColor a, QColor b) { return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()); };
+    auto towardInk = [&](qreal t) {
+        return QColor::fromRgbF(base.redF() + (ink.redF() - base.redF()) * t, base.greenF() + (ink.greenF() - base.greenF()) * t,
+                                base.blueF() + (ink.blueF() - base.blueF()) * t, 1.0);
+    };
+    if (distance(panel, base) < 24) {
+        const qreal t = 0.06;
+        panel = QColor::fromRgbF(base.redF() + (ink.redF() - base.redF()) * t, base.greenF() + (ink.greenF() - base.greenF()) * t,
+                                 base.blueF() + (ink.blueF() - base.blueF()) * t, panel.alphaF());
+    }
     setStyleSheet(
         QString("QWidget#vkiWindow {background:transparent;} "
                 "QWidget#content {background:%1;} "
@@ -152,10 +166,10 @@ void Window::applyTheme() {
                 "QLabel#cardTitle {font-size:16px;font-weight:600;} "
                 "QLabel#code {color:%3;font-family:monospace;font-size:12px;} "
                 "QLabel#banner {background:%4;border:1px solid %9;border-radius:10px;padding:12px 14px;} "
-                "QWidget#card {background:%4;border:1px solid %5;border-radius:14px;} "
+                "QWidget#card {background:%11;border:1px solid %5;border-radius:14px;} "
                 "QWidget#card QLabel {border:none;} "
-                "QPushButton {background:%4;border:1px solid %5;border-radius:8px;padding:8px 14px;} "
-                "QPushButton:hover {background:%6;border-color:%7;} "
+                "QPushButton {background:%12;border:1px solid transparent;border-radius:8px;padding:8px 14px;} "
+                "QPushButton:hover {background:%13;} "
                 "QPushButton:focus {border:2px solid %7;padding:7px 13px;} "
                 "QPushButton:checked {background:%7;color:%8;border-color:%7;} "
                 "QPushButton#nav {background:transparent;border:none;text-align:left;padding:10px 12px;} "
@@ -190,7 +204,7 @@ void Window::applyTheme() {
                 "QLabel#modalTitle {font-size:22px;font-weight:600;} "
                 "QWidget#modalCard QPushButton {min-height:20px;}")
             .arg(c("background"), c("text"), c("muted"), c("surface"), c("border"), c("surface_alt"), c("accent"),
-                 c("accent_text"), c("danger"), c("selection")));
+                 c("accent_text"), c("danger"), c("selection"), css(panel), css(towardInk(0.12)), css(towardInk(0.18))));
     for (int i = 0; i < nav_.size(); ++i)
         nav_[i]->setIcon(glyph(navNames[i], theme.color("text")));
     lighting_->setTheme(theme);

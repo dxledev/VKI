@@ -1,4 +1,5 @@
 #include "keycodes.h"
+#include <QHash>
 #include <algorithm>
 
 namespace vki {
@@ -41,6 +42,21 @@ QString keycodeLabel(quint16 code, const QList<CustomKeycode> &custom) {
         return entry.name.isEmpty() ? entry.shortName : entry.name;
     }
     return "0x" + QString("%1").arg(code, 4, 16, QChar('0')).toUpper();
+}
+
+QString keycapLabel(quint16 code, const QList<CustomKeycode> &custom) {
+    static const QHash<QString, QString> names = {
+        {"1", "!\n1"}, {"2", "@\n2"}, {"3", "#\n3"}, {"4", "$\n4"}, {"5", "%\n5"}, {"6", "^\n6"}, {"7", "&\n7"},
+        {"8", "*\n8"}, {"9", "(\n9"}, {"0", ")\n0"}, {"-", "_\n-"}, {"=", "+\n="}, {"[", "{\n["}, {"]", "}\n]"},
+        {"\\", "|\n\\"}, {";", ":\n;"}, {"'", "\"\n'"}, {"`", "~\n`"}, {",", "<\n,"}, {".", ">\n."}, {"/", "?\n/"},
+        {"\\|", "|\n\\"}, {"Bksp", "Backspace"}, {"Caps", "Caps Lock"}, {"PrtSc", "Print"}, {"ScrLk", "Scroll Lock"},
+        {"NumLk", "N.Lck"}, {"PEnt", "N.Ent"}, {"P/", "\u00F7"}, {"P*", "\u00D7"}, {"P-", "-"}, {"P+", "+"}, {"P.", "."},
+        {"Right", "\u2192"}, {"Left", "\u2190"}, {"Down", "\u2193"}, {"Up", "\u2191"},
+        {"LCtrl", "LCtl"}, {"RCtrl", "RCtl"}, {"LGui", "LWin"}, {"RGui", "RWin"}, {"Esc`", "Esc `"},
+    };
+    const QString base = keycodeLabel(code, custom);
+    if (code >= 0x59 && code <= 0x62) return QString(QChar('0' + (code == 0x62 ? 0 : code - 0x58)));  // keypad digits
+    return names.value(base, base);
 }
 
 QList<KeycodeCategory> keycodeCategories(int layers, const QList<CustomKeycode> &custom) {

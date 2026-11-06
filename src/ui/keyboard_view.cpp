@@ -20,6 +20,22 @@ QColor mixed(const QColor &a, const QColor &b, double t) {
     return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t, a.greenF() * (1 - t) + b.greenF() * t,
                             a.blueF() * (1 - t) + b.blueF() * t, a.alphaF());
 }
+// Draws a legend centred in r, shrinking the type until it fits so nothing needs eliding.
+void drawLegend(QPainter &p, QFont font, const QRectF &r, const QString &text, double singlePx, double minPx = 6) {
+    if (text.isEmpty()) return;
+    const QStringList lines = text.split('\n');
+    double px = text.size() == 1 ? singlePx : (lines.size() > 1 ? singlePx * .8 : singlePx * .75);
+    for (; px > minPx; px -= .5) {
+        font.setPixelSize(std::max(1, int(std::round(px))));
+        const QFontMetricsF fm(font);
+        double widest = 0;
+        for (const auto &line : lines) widest = std::max(widest, fm.horizontalAdvance(line));
+        if (widest <= r.width() && fm.lineSpacing() * lines.size() <= r.height() + 2) break;
+    }
+    font.setPixelSize(std::max(1, int(std::round(px))));
+    p.setFont(font);
+    p.drawText(r, Qt::AlignCenter, text);
+}
 constexpr double kYawLimit = .1, kPitchMin = .12, kPitchMax = .45; }
 
 KeyboardView::KeyboardView(QWidget *parent) : QWidget(parent), theme_(presetTheme("lofi")) {
@@ -114,7 +130,7 @@ void KeyboardView::paintEvent(QPaintEvent *) {
         if (previewMode_ && i < preview_.size()) fill = preview_[i];
         const bool selected = !previewMode_ && i == selected_;
         if (hovered || selected) fill = theme_.color("selection");
-        p.setPen(QPen(theme_.color(focused || hovered || selected ? "accent" : "border"), focused || selected ? 2 : 1));
+        p.setPen(QPen(theme_.color(focused || hovered ? "accent" : "border"), focused ? 2 : 1));
         p.setBrush(fill);
         if (key.encoder >= 0) {
             const double d = std::min(rect.width(), rect.height());
@@ -126,9 +142,7 @@ void KeyboardView::paintEvent(QPaintEvent *) {
         const int index = key.row * definition_.cols + key.col;
         const quint16 code = index < codes_.size() ? codes_[index] : 0;
         p.setPen(theme_.color(enabled_ ? "keycap_text" : "muted"));
-        p.drawText(rect.adjusted(3, 2, -3, -2), Qt::AlignCenter | Qt::TextWordWrap,
-                   p.fontMetrics().elidedText(keycodeLabel(code, definition_.customKeycodes), Qt::ElideRight,
-                                              int(rect.width()) - 6));
+        drawLegend(p, font, rect.adjusted(3, 2, -3, -2), keycapLabel(code, definition_.customKeycodes), font.pixelSize());
     }
 }
 
@@ -472,7 +486,7 @@ void KeyboardView::paint3D() {
                 p.drawPolygon(QPolygonF{baseRing[s], baseRing[n], topRing[n], topRing[s]});
             }
             p.setBrush(top);
-            p.setPen(selected ? QPen(theme_.color("accent"), 2) : Qt::NoPen);
+            p.setPen(Qt::NoPen);
             p.drawPolygon(topRing);
             // A notch shows which way the knob faces and keeps it readable as a dial.
             p.setPen(QPen(shade(top, .35), 2, Qt::SolidLine, Qt::RoundCap));
@@ -489,8 +503,7 @@ void KeyboardView::paint3D() {
                 p.save();
                 p.setTransform(t, true);
                 p.setPen(legend);
-                p.drawText(QRectF(0, 0, half * 2, half * 2), Qt::AlignCenter,
-                           metrics.elidedText(keycodeLabel(pressCode, definition_.customKeycodes), Qt::ElideRight, int(half * 2)));
+                drawLegend(p, font, QRectF(0, 0, half * 2, half * 2), keycapLabel(pressCode, definition_.customKeycodes), 13, 4);
                 p.restore();
             }
             faces_.push_back(Face{i, topRing, baseRing});
@@ -515,7 +528,7 @@ void KeyboardView::paint3D() {
             p.drawPolygon(quad(s.a[0], s.a[1], s.a[2], s.b[0], s.b[1], s.b[2], s.c[0], s.c[1], s.c[2], s.d[0], s.d[1], s.d[2]));
         }
         p.setBrush(top);
-        p.setPen(selected ? QPen(theme_.color("accent"), 2) : Qt::NoPen);
+        p.setPen(Qt::NoPen);
         p.drawPolygon(face.top);
 
         const int index = k.row * definition_.cols + k.col;
@@ -526,8 +539,7 @@ void KeyboardView::paint3D() {
             p.save();
             p.setTransform(t, true);
             p.setPen(legend);
-            p.drawText(local.adjusted(2, 1, -2, -1), Qt::AlignCenter | Qt::TextWordWrap,
-                       metrics.elidedText(keycodeLabel(code, definition_.customKeycodes), Qt::ElideRight, int(local.width()) - 4));
+            drawLegend(p, font, local.adjusted(2, 1, -2, -1), keycapLabel(code, definition_.customKeycodes), 15);
             p.restore();
         }
         faces_.push_back(std::move(face));
