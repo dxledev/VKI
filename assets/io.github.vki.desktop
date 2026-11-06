@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=VKI
-Comment=Configure the Epomaker Galaxy100 Lite keyboard
+Comment=Virtual Keyboard Interface
 Exec=vki
 Icon=io.github.vki
 Terminal=false
